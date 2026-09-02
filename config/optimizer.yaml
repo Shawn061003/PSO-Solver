@@ -1,0 +1,133 @@
+# 统一优化器配置模板。
+# 最常用的操作只有一个：修改 solver.method，即可在六种算法之间切换。
+solver:
+  # 可选：pso、de、sade、jade、shade、lshade。
+  method: pso
+
+  # false 求最小值；true 求最大值。目标函数本身不需要手动取负号。
+  maximize: false
+
+  # 最大迭代代数。对 DE 系列表示最大进化代数。
+  max_iterations: 300
+
+  # 最优值改善超过该阈值，才视为一次有效改善。
+  tolerance: 1.0e-8
+
+  # 连续多少代没有有效改善时提前停止。
+  stall_iterations: 80
+
+  # 固定随机种子便于复现实验；比较算法时建议使用相同的一组种子。
+  seed: 2026
+
+# ----------------------------- PSO 参数 -----------------------------
+# 仅当 solver.method: pso 时读取。
+pso:
+  # 粒子数量；越大搜索越充分，但每代目标函数调用次数越多。
+  swarm_size: 64
+
+  # 惯性权重从 start 线性退火到 end；前期偏探索，后期偏收敛。
+  inertia_start: 0.90
+  inertia_end: 0.40
+
+  # 个体学习因子 c1 和群体学习因子 c2。
+  cognitive: 1.70
+  social: 1.70
+
+  # 每维最大速度占该维搜索区间宽度的比例，必须在 (0, 1]。
+  velocity_limit_ratio: 0.25
+
+  # 粒子撞击边界后的反向速度保留比例，必须在 [0, 1]。
+  boundary_damping: 0.50
+
+# -------------------------- DE 系列公共参数 --------------------------
+# 仅在选择任意 DE 变体时读取。
+de_common:
+  # 交叉方式：binomial（二项交叉）或 exponential（指数交叉）。
+  crossover: binomial
+
+# ------------------------ 基础 DE/rand/1 参数 ------------------------
+# 仅当 solver.method: de 时读取。
+de:
+  # 种群数量，至少为 4；常用经验值为问题维数的 5～10 倍。
+  population_size: 80
+
+  # 变异策略：rand1、best1、current_to_best1、rand2、best2。
+  # rand2/best2 至少需要 6 个个体；其余策略至少需要 4 个个体。
+  mutation_strategy: rand1
+
+  # 差分缩放因子 F，必须在 (0, 2]，常用值为 0.4～0.9。
+  differential_weight: 0.50
+
+  # 交叉概率 CR，必须在 [0, 1]。
+  crossover_rate: 0.90
+
+# ----------------------------- SaDE 参数 -----------------------------
+# 仅当 solver.method: sade 时读取。
+sade:
+  # 种群数量；本实现含 rand/2 策略，因此至少为 6。
+  population_size: 80
+
+  # 每隔多少代，根据四种变异策略的成功率更新其选择概率和 CR 均值。
+  learning_period: 50
+
+  # F 从正态分布采样时使用的均值和标准差。
+  differential_weight_mean: 0.50
+  differential_weight_stddev: 0.30
+
+  # CR 的初始均值和正态采样标准差；成功 CR 会参与后续自适应。
+  initial_crossover_mean: 0.50
+  crossover_stddev: 0.10
+
+# ----------------------------- JADE 参数 -----------------------------
+# 仅当 solver.method: jade 时读取。
+jade:
+  # 固定种群数量，至少为 4。
+  population_size: 80
+
+  # 从排名前 p 比例的个体中选择 pbest，典型范围 0.05～0.20。
+  p_best_rate: 0.10
+
+  # F、CR 均值的学习率 c；越大越重视最近一代的成功参数。
+  adaptation_rate: 0.10
+
+  # F 和 CR 的初始均值，之后由成功试验个体自动更新。
+  initial_f_mean: 0.50
+  initial_cr_mean: 0.50
+
+# ----------------------------- SHADE 参数 ----------------------------
+# 仅当 solver.method: shade 时读取。
+shade:
+  # 固定种群数量，至少为 4。
+  population_size: 100
+
+  # pbest 候选比例。
+  p_best_rate: 0.10
+
+  # 成功参数历史记忆数组长度 H，常用值为 5～20。
+  memory_size: 6
+
+  # F 和 CR 历史记忆数组的初始值。
+  initial_f_memory: 0.50
+  initial_cr_memory: 0.50
+
+# ---------------------------- L-SHADE 参数 ---------------------------
+# 仅当 solver.method: lshade 时读取。
+lshade:
+  # 初始种群数量；搜索过程中会线性缩减。
+  initial_population_size: 120
+
+  # 最终最小种群数量，至少为 4，且不能大于初始种群数量。
+  min_population_size: 4
+
+  # pbest 候选比例。
+  p_best_rate: 0.10
+
+  # 成功参数历史记忆数组长度及其初始值。
+  memory_size: 6
+  initial_f_memory: 0.50
+  initial_cr_memory: 0.50
+
+# 决策变量上下界。lower[i]、upper[i] 必须与目标函数 x[i] 的含义顺序一致。
+bounds:
+  lower: [-5.0, -5.0]
+  upper: [5.0, 5.0]

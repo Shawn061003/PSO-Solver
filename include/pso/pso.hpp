@@ -1,24 +1,18 @@
 #pragma once
 
+#include "optimization/types.hpp"
+
 #include <cstddef>
 #include <cstdint>
-#include <functional>
-#include <limits>
 #include <utility>
 #include <vector>
 
 namespace pso {
 
-// 决策向量。下标含义由具体赛题定义，例如 x[0] 可以表示速度、角度或时间。
-using Vector = std::vector<double>;
-
-// 每一维变量的闭区间边界：[lower, upper]。
-// bounds[i] 必须与决策向量 x[i] 一一对应，且 lower < upper。
-using Bounds = std::vector<std::pair<double, double>>;
-
-// 目标函数统一返回一个 double。约束问题通常由调用方在函数内部加入罚值。
-// 求解器不会解释返回值的物理意义，只根据 maximize 决定比较方向。
-using Objective = std::function<double(const Vector&)>;
+// 兼容旧版 PSO 调用代码。新项目也可以直接使用 optimization 命名空间中的公共类型。
+using Vector = optimization::Vector;
+using Bounds = optimization::Bounds;
+using Objective = optimization::Objective;
 
 // 粒子群算法的全部通用超参数。
 // 默认值适合先做小规模冒烟测试；正式求解应通过 YAML 显式给出并记录随机种子。
@@ -59,29 +53,8 @@ struct PsoConfig {
     bool maximize{false};
 };
 
-// optimize() 的完整返回值。除最优解外，还保留计算成本和收敛轨迹，便于写论文。
-struct PsoResult {
-    // 搜索结束时发现的全局最优决策向量。
-    Vector best_position;
-
-    // best_position 对应的目标函数值。
-    double best_value{std::numeric_limits<double>::quiet_NaN()};
-
-    // 实际执行的迭代代数；提前停止时可能小于 max_iterations。
-    std::size_t iterations{0};
-
-    // 目标函数累计调用次数，可用于公平比较不同优化算法的计算成本。
-    std::size_t evaluations{0};
-
-    // 是否由“停滞代数达到阈值”触发提前收敛；跑满代数时为 false。
-    bool converged{false};
-
-    // optimize() 的墙钟时间，不包含调用方读取数据或输出结果的耗时。
-    double elapsed_seconds{0.0};
-
-    // history[0] 是初始化后的最优值，之后每个元素对应一代结束时的全局最优值。
-    std::vector<double> history;
-};
+// 保留 PsoResult 名称，实际使用所有算法共用的 optimization::Result。
+using PsoResult = optimization::Result;
 
 // 有界连续变量的经典全局粒子群优化器。
 // 类对象本身不保存运行状态，因此同一个实例可以用相同配置重复调用 optimize()。
@@ -89,7 +62,7 @@ class ParticleSwarmOptimizer {
 public:
     // 回调参数依次为：当前代数、当前全局最优值、当前全局最优位置。
     // 可用于打印进度或保存收敛曲线；不应在回调中修改优化器状态。
-    using Callback = std::function<void(std::size_t, double, const Vector&)>;
+    using Callback = optimization::Callback;
 
     // 构造时完成参数和边界检查，尽早暴露 YAML 或建模阶段的配置错误。
     ParticleSwarmOptimizer(Bounds bounds, PsoConfig config = {});
