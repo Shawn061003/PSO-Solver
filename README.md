@@ -90,6 +90,66 @@ int main(int argc, char* argv[]) {
 
 相对路径以命令执行时的工作目录为基准，因此建议始终从使用方项目根目录运行程序。
 
+## 设置目标函数
+
+目标函数不写在 YAML 中，而是在使用方的 C++ 代码中定义，并传给 `optimize()`：
+
+```cpp
+const pso::Objective objective = [](const pso::Vector& x) {
+    return x[0] * x[0] + x[1] * x[1];
+};
+
+const pso::PsoResult result = optimizer.optimize(objective);
+```
+
+上例求解 `x[0]^2 + x[1]^2` 的最小值，因此 YAML 中设置：
+
+```yaml
+solver:
+  maximize: false
+```
+
+如果要求最大值，将 `maximize` 改为 `true`，目标函数本身正常返回待最大化的数值，
+不需要额外添加负号：
+
+```cpp
+const pso::Objective objective = [](const pso::Vector& x) {
+    return 10.0 - (x[0] - 2.0) * (x[0] - 2.0);
+};
+```
+
+`x[i]` 的物理意义必须与 YAML 边界顺序一致。例如 `x[0]` 表示速度、`x[1]` 表示
+角度、`x[2]` 表示时间时：
+
+```yaml
+bounds:
+  # 速度、角度、时间
+  lower: [70.0, 0.0, 0.0]
+  upper: [140.0, 6.283185307, 10.0]
+```
+
+有约束问题可以在目标函数中加入罚值。下面要求 `x[0] + x[1] <= 5`，并求最小值：
+
+```cpp
+const pso::Objective objective = [](const pso::Vector& x) {
+    const double value = x[0] * x[0] + x[1] * x[1];
+    const double excess = x[0] + x[1] - 5.0;
+    const double penalty = excess > 0.0 ? 1.0e6 * excess * excess : 0.0;
+    return value + penalty;  // 最小化加罚值；最大化则减去罚值
+};
+```
+
+目标函数需要模型或数据时，可以捕获预先构造的模型对象：
+
+```cpp
+Model model(model_config);
+const pso::Objective objective = [&model](const pso::Vector& x) {
+    return model.evaluate(x);
+};
+```
+
+不要在目标函数内部重复读取文件，因为一次 PSO 求解通常会调用目标函数数千次。
+
 ## 接入新赛题
 
 1. 在赛题项目中定义决策向量每一维的物理意义；
