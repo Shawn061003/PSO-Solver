@@ -1,0 +1,18 @@
+# Generic two-dimensional configuration used by tests and documentation.
+solver:
+  swarm_size: 64
+  max_iterations: 150
+  inertia_start: 0.90
+  inertia_end: 0.40
+  cognitive: 1.70
+  social: 1.70
+  velocity_limit_ratio: 0.25
+  boundary_damping: 0.50
+  tolerance: 1.0e-8
+  stall_iterations: 40
+  seed: 2026
+  maximize: false
+
+bounds:
+  lower: [-5.0, -5.0]
+  upper: [5.0, 5.0]
