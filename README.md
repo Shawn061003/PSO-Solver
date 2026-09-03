@@ -1,8 +1,8 @@
-# Modeling PSO & DE Solver
+# Modeling PSO, DE & ES Solver
 
 一个面向数学建模竞赛的 C++20 无梯度优化器库，适用于有界、连续、非线性问题。
-目标函数和调用代码保持不变，只需修改 YAML 中的 `solver.method`，即可切换 PSO 或
-不同的差分进化算法。
+目标函数和调用代码保持不变，只需修改 YAML 中的 `solver.method`，即可切换 PSO、
+差分进化或演化策略算法。
 
 ## 支持的算法
 
@@ -14,6 +14,8 @@
 | `jade` | current-to-pbest/1、外部档案和参数自适应 |
 | `shade` | 成功参数历史自适应差分进化 |
 | `lshade` | SHADE 加线性种群规模缩减 |
+| `es` | 基础高斯演化策略，支持两种环境选择与两种重组方式 |
+| `cmaes` | 标准全协方差 CMA-ES，自动学习尺度和变量相关性 |
 
 所有算法共用以下能力：
 
@@ -31,13 +33,15 @@
 include/optimization/    统一类型、配置和 Solver 入口
 include/pso/             PSO 公共接口及旧版兼容接口
 include/de/              DE 系列公共接口和参数结构
+include/es/              ES 与 CMA-ES 公共接口和参数结构
 src/pso.cpp              PSO 实现
 src/de.cpp               DE、SaDE、JADE、SHADE、L-SHADE 实现
+src/es.cpp               基础 ES、CMA-ES 和对称矩阵特征分解实现
 src/solver.cpp           YAML 算法选择和统一调用分派
 src/config.cpp           零第三方依赖的 YAML 子集读取器
 config/optimizer.yaml    推荐使用的统一配置模板
 config/pso.yaml          旧版 PSO 直接接口配置模板
-tests/                   PSO、DE 系列、配置和统一入口测试
+tests/                   PSO、DE、ES、CMA-ES、配置和统一入口测试
 docs/                    已完成赛题的接入记录
 ```
 
@@ -103,8 +107,8 @@ int main(int argc, char* argv[]) {
 
 ```yaml
 solver:
-  # 可选：pso、de、sade、jade、shade、lshade
-  method: lshade
+  # 可选：pso、de、sade、jade、shade、lshade、es、cmaes
+  method: cmaes
 ```
 
 选择任意 DE 变体时，还可以统一选择交叉方式：
@@ -129,6 +133,33 @@ de:
 `de.mutation_strategy` 只影响基础 `de`。SaDE、JADE、SHADE 和 L-SHADE 的变异及
 参数自适应规则是算法自身的一部分，不使用这个开关。
 
+基础 ES 可以选择 `(mu,lambda)` 或 `(mu+lambda)` 环境选择，以及中间或离散重组：
+
+```yaml
+es:
+  parent_count: 20
+  offspring_count: 80
+  selection_mode: plus       # comma 或 plus
+  recombination: intermediate # intermediate 或 discrete
+  initial_step_size: 0.15
+  adapt_step_size: true
+```
+
+CMA-ES 的种群数量和父代数量设为 `0` 时会根据问题维数自动确定，初次使用建议保留
+学习率的自动设置：
+
+```yaml
+cmaes:
+  population_size: 0
+  parent_count: 0
+  initial_step_size: 0.25
+  c_sigma: 0.0  # 0 表示使用标准自动公式
+  d_sigma: 0.0
+  c_c: 0.0
+  c1: 0.0
+  c_mu: 0.0
+```
+
 各算法需要调整的参数均已在 [config/optimizer.yaml](config/optimizer.yaml) 和对应头文件
 中写有中文注释：
 
@@ -142,6 +173,8 @@ de:
 | `jade.*` | `method: jade` | 种群、pbest 比例、学习率、初始参数均值 |
 | `shade.*` | `method: shade` | 种群、pbest 比例、历史记忆长度和初值 |
 | `lshade.*` | `method: lshade` | 初始/最小种群、pbest 比例、历史记忆参数 |
+| `es.*` | `method: es` | 父子代数量、选择、重组、变异步长及 1/5 自适应 |
+| `cmaes.*` | `method: cmaes` | 自动种群、全局步长、协方差学习率和数值保护 |
 
 ## 设置目标函数
 
@@ -213,7 +246,8 @@ const auto result = solver.optimize(
     });
 ```
 
-初始解数量可以少于种群数量，其余个体仍会随机初始化。
+PSO、DE 和基础 ES 会把初始解注入种群，其余个体随机初始化；CMA-ES 会先评估所有
+给定初始解，并把其中最好者作为初始均值。两种方式都允许只提供一个初始解。
 
 ## 接入新赛题
 

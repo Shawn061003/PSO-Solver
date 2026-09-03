@@ -1,13 +1,13 @@
 # 统一优化器配置模板。
-# 最常用的操作只有一个：修改 solver.method，即可在六种算法之间切换。
+# 最常用的操作只有一个：修改 solver.method，即可在八种算法之间切换。
 solver:
-  # 可选：pso、de、sade、jade、shade、lshade。
+  # 可选：pso、de、sade、jade、shade、lshade、es、cmaes。
   method: pso
 
   # false 求最小值；true 求最大值。目标函数本身不需要手动取负号。
   maximize: false
 
-  # 最大迭代代数。对 DE 系列表示最大进化代数。
+  # 最大迭代代数。对 DE/ES 系列表示最大进化代数。
   max_iterations: 300
 
   # 最优值改善超过该阈值，才视为一次有效改善。
@@ -126,6 +126,65 @@ lshade:
   memory_size: 6
   initial_f_memory: 0.50
   initial_cr_memory: 0.50
+
+# ------------------------------ ES 参数 ------------------------------
+# 仅当 solver.method: es 时读取。
+es:
+  # 每代保留的父代数量 mu，至少为 2。
+  parent_count: 20
+
+  # 每代生成的子代数量 lambda；comma 模式下必须不小于 parent_count。
+  offspring_count: 80
+
+  # 初始高斯变异步长，占各维搜索区间的比例。
+  initial_step_size: 0.15
+
+  # 变异步长的数值保护范围。
+  min_step_size: 1.0e-8
+  max_step_size: 1.00
+
+  # 环境选择：comma 对应 (mu,lambda)-ES；plus 对应 (mu+lambda)-ES。
+  selection_mode: plus
+
+  # 重组方式：intermediate 为两父代取均值；discrete 为各维随机继承一个父代。
+  recombination: intermediate
+
+  # 是否使用 1/5 成功规则自动调整变异步长。
+  adapt_step_size: true
+
+  # 每隔多少代调整一次步长，以及调整倍率。倍率必须大于 1。
+  adaptation_interval: 10
+  adaptation_factor: 1.50
+
+# ---------------------------- CMA-ES 参数 ----------------------------
+# 仅当 solver.method: cmaes 时读取。
+cmaes:
+  # 子代数量 lambda；0 表示自动使用 4 + floor(3*ln(n))。
+  population_size: 0
+
+  # 加权重组父代数量 mu；0 表示自动使用 lambda/2。
+  parent_count: 0
+
+  # 初始全局步长，占各维搜索区间的比例。
+  initial_step_size: 0.25
+
+  # 全局步长的数值保护范围。
+  min_step_size: 1.0e-12
+  max_step_size: 2.00
+
+  # 以下五项设为 0 时使用标准 CMA-ES 自动公式；通常不建议初次使用时手动修改。
+  c_sigma: 0.0
+  d_sigma: 0.0
+  c_c: 0.0
+  c1: 0.0
+  c_mu: 0.0
+
+  # 协方差矩阵特征分解间隔；1 最稳妥，高维昂贵模型可适当增大。
+  eigen_update_period: 1
+
+  # 特征值下限和最大允许条件数，用于防止协方差矩阵数值失稳。
+  eigenvalue_floor: 1.0e-20
+  max_condition_number: 1.0e14
 
 # 决策变量上下界。lower[i]、upper[i] 必须与目标函数 x[i] 的含义顺序一致。
 bounds:

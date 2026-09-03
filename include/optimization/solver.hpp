@@ -1,6 +1,7 @@
 #pragma once
 
 #include "de/de.hpp"
+#include "es/es.hpp"
 #include "optimization/types.hpp"
 #include "pso/config.hpp"
 #include "pso/pso.hpp"
@@ -11,7 +12,8 @@
 
 namespace optimization {
 
-// 统一入口支持的全部算法。配置文件中分别写作 pso/de/sade/jade/shade/lshade。
+// 统一入口支持的全部算法。
+// 配置文件中分别写作 pso/de/sade/jade/shade/lshade/es/cmaes。
 enum class Method {
     pso,
     de,
@@ -19,6 +21,8 @@ enum class Method {
     jade,
     shade,
     lshade,
+    es,
+    cmaes,
 };
 
 // 从 YAML 读取后的完整求解设置。只有 method 选中的算法参数会参与计算。
@@ -27,6 +31,8 @@ struct SolverSettings {
     Bounds bounds;
     pso::PsoConfig pso;
     de::DeConfig de;
+    es::EsConfig es;
+    es::CmaEsConfig cmaes;
 };
 
 // 将算法名称转换为枚举；名称不区分大小写，L-SHADE 也接受 "l-shade"。

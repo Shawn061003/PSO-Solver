@@ -7,6 +7,7 @@ option(PSO_BUILD_TESTS "Build the test executables" ON)
 add_library(pso_solver
     src/config.cpp
     src/de.cpp
+    src/es.cpp
     src/pso.cpp
     src/solver.cpp
 )
@@ -40,6 +41,10 @@ if(PSO_BUILD_TESTS)
     target_link_libraries(test_de PRIVATE optimization::solver)
     add_test(NAME de_family COMMAND test_de)
 
+    add_executable(test_es tests/test_es.cpp)
+    target_link_libraries(test_es PRIVATE optimization::solver)
+    add_test(NAME es_family COMMAND test_es)
+
     add_executable(test_solver tests/test_solver.cpp)
     target_link_libraries(test_solver PRIVATE optimization::solver)
 
@@ -69,12 +74,22 @@ if(PSO_BUILD_TESTS)
         OPTIMIZER_DE_TEST_CONFIG_CONTENT "${OPTIMIZER_DE_TEST_CONFIG_CONTENT}")
     file(WRITE "${PSO_TEST_CONFIG_DIR}/optimizer_de.yaml"
         "${OPTIMIZER_DE_TEST_CONFIG_CONTENT}")
+    string(REPLACE "method: pso" "method: es"
+        OPTIMIZER_ES_TEST_CONFIG_CONTENT "${OPTIMIZER_TEST_CONFIG_CONTENT}")
+    file(WRITE "${PSO_TEST_CONFIG_DIR}/optimizer_es.yaml"
+        "${OPTIMIZER_ES_TEST_CONFIG_CONTENT}")
+    string(REPLACE "method: pso" "method: cmaes"
+        OPTIMIZER_CMAES_TEST_CONFIG_CONTENT "${OPTIMIZER_TEST_CONFIG_CONTENT}")
+    file(WRITE "${PSO_TEST_CONFIG_DIR}/optimizer_cmaes.yaml"
+        "${OPTIMIZER_CMAES_TEST_CONFIG_CONTENT}")
     target_compile_definitions(test_config PRIVATE
         TEST_CONFIG_PATH="test_data/pso.yaml"
     )
     target_compile_definitions(test_solver PRIVATE
         TEST_OPTIMIZER_CONFIG_PATH="test_data/optimizer.yaml"
         TEST_DE_CONFIG_PATH="test_data/optimizer_de.yaml"
+        TEST_ES_CONFIG_PATH="test_data/optimizer_es.yaml"
+        TEST_CMAES_CONFIG_PATH="test_data/optimizer_cmaes.yaml"
     )
     add_test(NAME yaml_config COMMAND test_config)
     add_test(NAME unified_solver COMMAND test_solver)

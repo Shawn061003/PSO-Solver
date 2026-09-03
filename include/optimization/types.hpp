@@ -35,7 +35,7 @@ struct Result {
     // 目标函数累计调用次数，适合用于公平比较不同算法的计算成本。
     std::size_t evaluations{0};
 
-    // 是否因连续多代没有超过 tolerance 的改善而提前结束。
+    // 是否因停滞准则或算法自身的数值收敛条件而提前结束。
     bool converged{false};
 
     // optimize() 的墙钟运行时间，单位为秒。

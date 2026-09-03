@@ -69,6 +69,28 @@ de::MutationStrategy mutation_from_string(const std::string& name) {
         "de.mutation_strategy must be rand1, best1, current_to_best1, rand2 or best2");
 }
 
+es::SelectionMode es_selection_from_string(const std::string& name) {
+    const std::string normalized = lowercase(name);
+    if (normalized == "comma") {
+        return es::SelectionMode::comma;
+    }
+    if (normalized == "plus") {
+        return es::SelectionMode::plus;
+    }
+    throw std::runtime_error("es.selection_mode must be comma or plus");
+}
+
+es::Recombination es_recombination_from_string(const std::string& name) {
+    const std::string normalized = lowercase(name);
+    if (normalized == "intermediate") {
+        return es::Recombination::intermediate;
+    }
+    if (normalized == "discrete") {
+        return es::Recombination::discrete;
+    }
+    throw std::runtime_error("es.recombination must be intermediate or discrete");
+}
+
 }  // namespace
 
 Method method_from_string(std::string_view name) {
@@ -91,8 +113,14 @@ Method method_from_string(std::string_view name) {
     if (normalized == "lshade" || normalized == "l-shade") {
         return Method::lshade;
     }
+    if (normalized == "es") {
+        return Method::es;
+    }
+    if (normalized == "cmaes" || normalized == "cma-es") {
+        return Method::cmaes;
+    }
     throw std::runtime_error(
-        "solver.method must be one of: pso, de, sade, jade, shade, lshade");
+        "solver.method must be one of: pso, de, sade, jade, shade, lshade, es, cmaes");
 }
 
 std::string_view method_name(Method method) {
@@ -109,6 +137,10 @@ std::string_view method_name(Method method) {
         return "shade";
     case Method::lshade:
         return "lshade";
+    case Method::es:
+        return "es";
+    case Method::cmaes:
+        return "cmaes";
     }
     throw std::logic_error("Unknown optimization method");
 }
@@ -138,6 +170,18 @@ SolverSettings load_solver_settings(const std::filesystem::path& path) {
     settings.de.common.stall_generations = stall_iterations;
     settings.de.common.seed = seed;
 
+    settings.es.common.maximize = maximize;
+    settings.es.common.max_generations = max_iterations;
+    settings.es.common.tolerance = tolerance;
+    settings.es.common.stall_generations = stall_iterations;
+    settings.es.common.seed = seed;
+
+    settings.cmaes.common.maximize = maximize;
+    settings.cmaes.common.max_generations = max_iterations;
+    settings.cmaes.common.tolerance = tolerance;
+    settings.cmaes.common.stall_generations = stall_iterations;
+    settings.cmaes.common.seed = seed;
+
     if (settings.method == Method::pso) {
         settings.pso.swarm_size = yaml.get_size("pso.swarm_size");
         settings.pso.inertia_start = yaml.get_double("pso.inertia_start");
@@ -146,6 +190,39 @@ SolverSettings load_solver_settings(const std::filesystem::path& path) {
         settings.pso.social = yaml.get_double("pso.social");
         settings.pso.velocity_limit_ratio = yaml.get_double("pso.velocity_limit_ratio");
         settings.pso.boundary_damping = yaml.get_double("pso.boundary_damping");
+        return settings;
+    }
+
+    if (settings.method == Method::es) {
+        settings.es.parent_count = yaml.get_size("es.parent_count");
+        settings.es.offspring_count = yaml.get_size("es.offspring_count");
+        settings.es.initial_step_size = yaml.get_double("es.initial_step_size");
+        settings.es.min_step_size = yaml.get_double("es.min_step_size");
+        settings.es.max_step_size = yaml.get_double("es.max_step_size");
+        settings.es.selection_mode = es_selection_from_string(
+            yaml.get_string("es.selection_mode"));
+        settings.es.recombination = es_recombination_from_string(
+            yaml.get_string("es.recombination"));
+        settings.es.adapt_step_size = yaml.get_bool("es.adapt_step_size");
+        settings.es.adaptation_interval = yaml.get_size("es.adaptation_interval");
+        settings.es.adaptation_factor = yaml.get_double("es.adaptation_factor");
+        return settings;
+    }
+
+    if (settings.method == Method::cmaes) {
+        settings.cmaes.population_size = yaml.get_size("cmaes.population_size");
+        settings.cmaes.parent_count = yaml.get_size("cmaes.parent_count");
+        settings.cmaes.initial_step_size = yaml.get_double("cmaes.initial_step_size");
+        settings.cmaes.min_step_size = yaml.get_double("cmaes.min_step_size");
+        settings.cmaes.max_step_size = yaml.get_double("cmaes.max_step_size");
+        settings.cmaes.c_sigma = yaml.get_double("cmaes.c_sigma");
+        settings.cmaes.d_sigma = yaml.get_double("cmaes.d_sigma");
+        settings.cmaes.c_c = yaml.get_double("cmaes.c_c");
+        settings.cmaes.c1 = yaml.get_double("cmaes.c1");
+        settings.cmaes.c_mu = yaml.get_double("cmaes.c_mu");
+        settings.cmaes.eigen_update_period = yaml.get_size("cmaes.eigen_update_period");
+        settings.cmaes.eigenvalue_floor = yaml.get_double("cmaes.eigenvalue_floor");
+        settings.cmaes.max_condition_number = yaml.get_double("cmaes.max_condition_number");
         return settings;
     }
 
@@ -202,6 +279,8 @@ SolverSettings load_solver_settings(const std::filesystem::path& path) {
         settings.de.lshade.initial_cr_memory = yaml.get_double("lshade.initial_cr_memory");
         break;
     case Method::pso:
+    case Method::es:
+    case Method::cmaes:
         break;
     }
     return settings;
@@ -216,6 +295,14 @@ Result Solver::optimize(
     const Callback& callback) const {
     if (settings_.method == Method::pso) {
         const pso::ParticleSwarmOptimizer optimizer(settings_.bounds, settings_.pso);
+        return optimizer.optimize(objective, initial_positions, callback);
+    }
+    if (settings_.method == Method::es) {
+        const es::EvolutionStrategyOptimizer optimizer(settings_.bounds, settings_.es);
+        return optimizer.optimize(objective, initial_positions, callback);
+    }
+    if (settings_.method == Method::cmaes) {
+        const es::CmaEvolutionStrategyOptimizer optimizer(settings_.bounds, settings_.cmaes);
         return optimizer.optimize(objective, initial_positions, callback);
     }
     const de::DifferentialEvolutionOptimizer optimizer(settings_.bounds, settings_.de);
